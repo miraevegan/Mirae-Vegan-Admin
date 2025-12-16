@@ -119,10 +119,10 @@ export default function UsersPage() {
                   <td className="px-6 py-4 lowercase">{user.email} <span className="ml-2 text-xs px-3 py-1 bg-brand-primary text-background capitalize rounded-full">{user.role}</span></td>
                   <td className="px-6 py-4">{user.phone || "-"}</td>
                   <td className="px-6 py-4 text-right">
-                    {/* {user.ordersCount ?? 0} */}
+                    {user.ordersCount ?? 0}
                   </td>
                   <td className="px-6 py-4 text-right">
-                    {/* ₹{user.totalSpent?.toLocaleString() ?? 0} */}
+                    ₹{user.totalSpent?.toLocaleString() ?? 0}
                   </td>
                   <td className="px-6 py-4">
                     {new Date(user.createdAt).toLocaleDateString()}
