@@ -1,26 +1,134 @@
 @import "tailwindcss";
 
+/* =========================
+   Custom Font Faces
+========================= */
+@font-face {
+  font-family: "Ngetic Modern";
+  src: url("/fonts/NgeticModernRegular-nAD5Y.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Ngetic Modern";
+  src: url("/fonts/NgeticModernItalic-IxVeV.otf") format("opentype");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* =========================
+   Root (Light Mode Only)
+========================= */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* 🌿 Brand */
+  --brand-primary: #224c2d;
+  --brand-secondary: #997434;
+
+  /* 🧱 Surfaces */
+  --surface-canvas: #f6efdf;
+  --surface-accent: #e6ddd0;
+
+  /* 🧩 Utility */
+  --ui-border: #b9b3a2;
+  --ui-hover: #3d7146;
+  --ui-focus: #4c86b0;
+  --ui-disabled: #a2a2a2;
+
+  /* 🚦 Status */
+  --status-success: #4caf50;
+  --status-error: #d32f2f;
+  --status-warning: #ffc107;
+  --status-info: #1976d2;
+
+  /* ✍️ Text */
+  --text-primary: #212121;
+  --text-secondary: #493b33;
+  --text-disabled: #8c8c8c;
+  --text-inverse: #ffffff;
+  
+  /* 🔤 Fonts */
+  --font-playfair: "Playfair Display", serif;
+  --font-montserrat: "Montserrat", sans-serif;
 }
 
+/* =========================
+   Tailwind v4 Theme Mapping
+========================= */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Backgrounds */
+  --color-background: var(--surface-canvas);
+  --color-surface: var(--surface-accent);
+
+  /* Brand */
+  --color-brand-primary: var(--brand-primary);
+  --color-brand-secondary: var(--brand-secondary);
+
+  /* UI */
+  --color-border: var(--ui-border);
+  --color-hover: var(--ui-hover);
+  --color-focus: var(--ui-focus);
+  --color-disabled: var(--ui-disabled);
+
+  /* Status */
+  --color-success: var(--status-success);
+  --color-error: var(--status-error);
+  --color-warning: var(--status-warning);
+  --color-info: var(--status-info);
+
+  /* Text */
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-disabled: var(--text-disabled);
+  --color-text-inverse: var(--text-inverse);
+
+  /* Fonts */
+  --font-brand: var(--font-playfair);
+  --font-body: var(--font-montserrat);
+  --font-highlight: "Ngetic Modern";
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* =========================
+   Global Styles
+========================= */
+body {
+  background: var(--surface-canvas);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+}
+
+/* =========================
+   Font Utilities
+========================= */
+@layer utilities {
+  .font-brand {
+    font-family: var(--font-brand);
+  }
+
+  .font-body {
+    font-family: var(--font-body);
+  }
+
+  .font-highlight {
+    font-family: var(--font-highlight);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+
+/* Animation for the Toast */
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-in {
+  animation: slide-in 0.3s ease-out;
 }
