@@ -31,7 +31,7 @@ export default function ProductsPage() {
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/products`);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_HOSTED_API_URL}/products`);
       if (!res.ok) throw new Error("Failed to fetch products");
 
       const data = await res.json();

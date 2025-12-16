@@ -54,7 +54,7 @@ export default function ViewProductModal({
       try {
         setLoadingProduct(true);
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/products/${slug}`
+          `${process.env.NEXT_PUBLIC_HOSTED_API_URL}/products/${slug}`
         );
 
         if (!res.ok) throw new Error("Failed to fetch product");
@@ -85,7 +85,7 @@ export default function ViewProductModal({
       try {
         setLoadingReviews(true);
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/reviews/${product._id}`
+          `${process.env.NEXT_PUBLIC_HOSTED_API_URL}/reviews/${product._id}`
         );
 
         if (!res.ok) throw new Error("Failed to fetch reviews");

@@ -51,7 +51,7 @@ export default function EditProductModal({
       const encodedPublicId = encodeURIComponent(publicId);
 
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/products/${product._id}/images/${encodedPublicId}`,
+        `${process.env.NEXT_PUBLIC_HOSTED_API_URL}/products/${product._id}/images/${encodedPublicId}`,
         {
           method: "DELETE",
           headers: {
@@ -90,7 +90,7 @@ export default function EditProductModal({
 
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/products/${product._id}`,
+        `${process.env.NEXT_PUBLIC_HOSTED_API_URL}/products/${product._id}`,
         {
           method: "PUT",
           headers: {
