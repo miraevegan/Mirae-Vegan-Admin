@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
 
@@ -12,6 +11,7 @@ const links = [
   { name: "Users", href: "/dashboard/users" },
   { name: "Reviews", href: "/dashboard/reviews" },
   { name: "Coupons", href: "/dashboard/coupons" },
+  { name: "Newsletter", href: "/dashboard/newsletter" },
 ];
 
 export default function Sidebar() {

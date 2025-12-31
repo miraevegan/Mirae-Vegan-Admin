@@ -1,8 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import type { Product, ProductImage } from "@/types/product";
 import Image from "next/image";
+import type { Product, ProductImage, Variant } from "@/types/product";
+import AddVariantModal from "./AddVariantModal";
+
+/* -------------------------------------------------------------------------- */
+/*                                    TYPES                                   */
+/* -------------------------------------------------------------------------- */
 
 interface EditProductModalProps {
   product: Product;
@@ -10,322 +15,472 @@ interface EditProductModalProps {
   onSave: (updatedProduct: Product) => void;
 }
 
+/* -------------------------------------------------------------------------- */
+/*                              MAIN COMPONENT                                */
+/* -------------------------------------------------------------------------- */
+
 export default function EditProductModal({
   product,
   onClose,
   onSave,
 }: EditProductModalProps) {
+  /* ---------------- BASIC ---------------- */
+
   const [name, setName] = useState(product.name);
   const [category, setCategory] = useState(product.category);
-  const [price, setPrice] = useState(product.price);
-  const [stock, setStock] = useState(product.stock);
   const [description, setDescription] = useState(product.description);
+
   const [discountPercentage, setDiscountPercentage] = useState(
-    product.discount?.percentage || 0
+    product.discount?.percentage ?? 0
   );
+
+  const [showAddVariantModal, setAddVariantModal] = useState(false);
+
+  const handleAddVariant = (newVariant: Variant) => {
+    setVariants((prev) => [...prev, newVariant]);
+  };
+
+  /* ---------------- VARIANTS ---------------- */
+
+  const [variants, setVariants] = useState<Variant[]>(product.variants);
+
+  // Update price or stock
+  const updateVariant = (
+    index: number,
+    field: "price" | "stock",
+    value: number
+  ) => {
+    setVariants((prev) =>
+      prev.map((v, i) =>
+        i === index ? { ...v, [field]: value } : v
+      )
+    );
+  };
+
+  // Update variant attribute for 'color' specifically, supporting both name and hex
+  const updateVariantColor = (
+    index: number,
+    field: "name" | "hex",
+    value: string
+  ) => {
+    setVariants((prev) =>
+      prev.map((v, i) => {
+        if (i !== index) return v;
+        return {
+          ...v,
+          attributes: {
+            ...v.attributes,
+            color: {
+              ...(v.attributes.color ?? { name: "", hex: "#000000" }),
+              [field]: value,
+            },
+          },
+        };
+      })
+    );
+  };
+
+  /* ---------------- PRODUCT IMAGES ---------------- */
+
+  const [images, setImages] = useState<ProductImage[]>(product.images ?? []);
   const [newImages, setNewImages] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
-  const [images, setImages] = useState(product.images || []);
-  const [isDeletingImageId, setIsDeletingImageId] = useState<string | null>(null);
 
-  const discountedPrice =
-    price - (price * discountPercentage) / 100;
+  /* 🔥 MAIN IMAGE PREVIEW */
+  const [activeImage, setActiveImage] = useState<string | null>(
+    product.images?.[0]?.url ?? null
+  );
 
-  // Handle new image files selection
-  const handleNewImagesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const files = Array.from(e.target.files);
-      setNewImages(files);
-      const urls = files.map((file) => URL.createObjectURL(file));
-      setPreviewUrls(urls);
-    }
+  const [isBestSeller, setIsBestSeller] = useState<boolean>(
+    product.isBestSeller ?? false
+  );
+
+  const [isJustLanded, setIsJustLanded] = useState<boolean>(
+    product.isJustLanded ?? false
+  );
+
+  const handleNewImagesChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    if (!e.target.files) return;
+
+    const files = Array.from(e.target.files);
+    setNewImages(files);
+    setPreviewUrls(files.map((file) => URL.createObjectURL(file)));
   };
 
-  // Delete image handler
   const handleDeleteImage = async (publicId: string) => {
-    if (!confirm("Are you sure you want to delete this image?")) return;
+    if (!confirm("Delete this image?")) return;
 
-    setIsDeletingImageId(publicId);
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/products/${product._id}/images/${encodeURIComponent(
+        publicId
+      )}`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem(
+            "mirae_admin_token"
+          )}`,
+        },
+      }
+    );
 
-    try {
-      const encodedPublicId = encodeURIComponent(publicId);
+    if (!res.ok) {
+      alert("Failed to delete image");
+      return;
+    }
 
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_HOSTED_API_URL}/products/${product._id}/images/${encodedPublicId}`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("mirae_admin_token")}`,
-          },
-        }
-      );
+    const updated: Product = await res.json();
+    setImages(updated.images);
 
-      if (!res.ok) throw new Error("Failed to delete image");
-
-      const data = await res.json();
-
-      setImages(data.images); // Update images after delete
-    } catch (error) {
-      alert(error instanceof Error ? error.message : "Unknown error");
-    } finally {
-      setIsDeletingImageId(null);
+    if (activeImage === images.find((i) => i.public_id === publicId)?.url) {
+      setActiveImage(updated.images?.[0]?.url ?? null);
     }
   };
+
+  /* ---------------- VARIANT IMAGE SELECTION (FROM PRODUCT IMAGES) ---------------- */
+
+  const toggleVariantImage = (variantIndex: number, image: ProductImage) => {
+    setVariants((prev) =>
+      prev.map((v, i) => {
+        if (i !== variantIndex) return v;
+
+        const imagesSet = new Set(
+          v.images?.map((img) => img.public_id) || []
+        );
+
+        if (imagesSet.has(image.public_id)) {
+          imagesSet.delete(image.public_id);
+        } else {
+          imagesSet.add(image.public_id);
+        }
+
+        return {
+          ...v,
+          images: images.filter((img) => imagesSet.has(img.public_id)),
+        };
+      })
+    );
+  };
+
+  /* ---------------- VARIANT CLICK = AUTO IMAGE SWITCH ---------------- */
+
+  const handleVariantClick = (variant: Variant) => {
+    if (variant.images?.length) {
+      setActiveImage(variant.images[0].url);
+    }
+  };
+
+  /* ---------------- SUBMIT ---------------- */
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Use FormData to send updated fields + new images
     const formData = new FormData();
+
     formData.append("name", name);
     formData.append("category", category);
-    formData.append("price", price.toString());
-    formData.append("stock", stock.toString());
     formData.append("description", description);
-    formData.append("discountPercentage", discountPercentage.toString());
+    formData.append(
+      "discount",
+      JSON.stringify({ percentage: discountPercentage })
+    );
+    formData.append("variants", JSON.stringify(variants));
 
-    newImages.forEach((file) => {
-      formData.append("images", file);
+    newImages.forEach((img) => {
+      formData.append("productImages", img);
     });
+    formData.append("isBestSeller", String(isBestSeller));
+    formData.append("isJustLanded", String(isJustLanded));
 
-    try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_HOSTED_API_URL}/products/${product._id}`,
-        {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("mirae_admin_token")}`,
-            // IMPORTANT: Do NOT set Content-Type header with FormData!
-          },
-          body: formData,
-        }
-      );
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/products/${product._id}`,
+      {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem(
+            "mirae_admin_token"
+          )}`,
+        },
+        body: formData,
+      }
+    );
 
-      if (!res.ok) throw new Error("Failed to update product");
-
-      const data = await res.json();
-      onSave(data.product);
-      onClose();
-    } catch (error) {
-      alert(error instanceof Error ? error.message : "Unknown error");
+    if (!res.ok) {
+      alert("Failed to update product");
+      return;
     }
+
+    const updatedProduct: Product = await res.json();
+    onSave(updatedProduct);
+    onClose();
   };
 
+  /* -------------------------------------------------------------------------- */
+  /*                                    UI                                      */
+  /* -------------------------------------------------------------------------- */
+
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-6">
-      <div className="bg-surface w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden">
-
-        {/* ---------- HEADER ---------- */}
-        <div className="px-8 py-6 border-b border-border flex justify-between items-center">
-          <div>
-            <h2 className="font-brand text-2xl">Edit Product</h2>
-            <p className="text-sm text-text-secondary">
-              Update product details carefully
-            </p>
-          </div>
-
-          <button
-            onClick={onClose}
-            className="text-sm px-4 py-2 rounded-full border border-border hover:bg-surface-accent transition"
-          >
-            ✕ Close
-          </button>
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-6">
+      <div className="bg-background max-w-5xl w-full rounded-3xl shadow-xl overflow-hidden">
+        <div className="px-8 py-6 border-b flex justify-between items-center">
+          <h2 className="text-2xl font-semibold">Edit Product</h2>
+          <button onClick={onClose}>✕</button>
         </div>
 
-        {/* ---------- FORM ---------- */}
         <form
           onSubmit={handleSubmit}
           className="p-8 space-y-8 max-h-[75vh] overflow-y-auto"
-          encType="multipart/form-data"
         >
-          {/* Basic Info */}
-          <Section title="Basic Information">
-            <Input label="Product Name" value={name} onChange={setName} required />
-            <Input label="Category" value={category} onChange={setCategory} required />
-          </Section>
-
-          {/* Description */}
-          <Section title="Description">
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={4}
-              className="w-full rounded-xl border border-border bg-transparent px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
-            />
-          </Section>
-
-          {/* Pricing */}
-          <Section title="Pricing & Stock">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <NumberInput label="Price (₹)" value={price} onChange={setPrice} min={0} required />
-              <NumberInput label="Stock" value={stock} onChange={setStock} min={0} required />
-              <NumberInput
-                label="Discount (%)"
-                value={discountPercentage}
-                onChange={setDiscountPercentage}
-                min={0}
-                max={100}
-              />
-            </div>
-
-            {discountPercentage > 0 && (
-              <div className="mt-4 rounded-xl bg-brand-primary/10 p-4">
-                <p className="text-sm font-medium text-brand-primary">
-                  Discounted Price
-                </p>
-                <p className="text-lg font-semibold">
-                  ₹{discountedPrice.toLocaleString()}
-                </p>
+          {/* IMAGE PREVIEW */}
+          <div className="space-y-4">
+            {activeImage && (
+              <div className="w-full flex justify-center">
+                <Image
+                  src={activeImage}
+                  width={320}
+                  height={320}
+                  alt=""
+                  className="rounded-2xl border"
+                />
               </div>
             )}
-          </Section>
 
-          {/* Existing Images with Delete */}
-          <Section title="Existing Images">
-            <div className="flex flex-wrap gap-4">
-              {images.length === 0 && (
-                <p className="text-text-secondary">No images available</p>
-              )}
-              {images.map(({ url, public_id }: ProductImage) => (
-                <div key={public_id} className="relative w-24 h-24 rounded-lg overflow-hidden border border-border">
-                  <Image
-                    src={url}
-                    alt="Product Image"
-                    width={150}
-                    height={150}
-                    className="object-cover w-full h-full"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteImage(public_id)}
-                    disabled={isDeletingImageId === public_id}
-                    className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-700 transition"
-                    title="Delete Image"
-                  >
-                    {isDeletingImageId === public_id ? "..." : "×"}
-                  </button>
-                </div>
-              ))}
-            </div>
-          </Section>
-
-          {/* Upload New Images */}
-          <Section title="Add New Images">
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={handleNewImagesChange}
-              className="w-full text-sm text-text-secondary"
-            />
-            <div className="mt-4 flex flex-wrap gap-4">
-              {previewUrls.map((url, idx) => (
+            <div className="flex gap-3 flex-wrap justify-center">
+              {images.map((img) => (
                 <Image
-                  key={idx}
+                  key={img.public_id}
+                  src={img.url}
+                  width={70}
+                  height={70}
+                  alt=""
+                  onClick={() => setActiveImage(img.url)}
+                  className="rounded-lg border cursor-pointer hover:opacity-80"
+                />
+              ))}
+
+              {previewUrls.map((url, i) => (
+                <Image
+                  key={i}
                   src={url}
-                  width={150}
-                  height={150}
-                  alt={`New Preview ${idx + 1}`}
-                  className="w-24 h-24 object-cover rounded-lg border border-border"
+                  width={70}
+                  height={70}
+                  alt=""
+                  className="rounded-lg opacity-70"
                 />
               ))}
             </div>
-          </Section>
+          </div>
 
-          {/* ---------- FOOTER ---------- */}
-          <div className="sticky bottom-0 bg-surface pt-6 border-t border-border flex justify-end gap-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-5 py-2.5 rounded-full border border-border hover:bg-surface-accent transition"
-            >
+          {/* BASIC */}
+          <div className="grid grid-cols-2 gap-6">
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Product Name</label>
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="border p-3 rounded-xl w-full"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Category</label>
+              <input
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="border p-3 rounded-xl w-full"
+              />
+            </div>
+          </div>
+
+          {/* DESCRIPTION */}
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Description</label>
+            <textarea
+              value={description}
+              rows={5}
+              onChange={(e) => setDescription(e.target.value)}
+              className="w-full border rounded-xl p-3"
+            />
+          </div>
+
+          {/* Discount */}
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Discount (%)</label>
+            <input
+              type="number"
+              min={0}
+              max={100}
+              value={discountPercentage}
+              onChange={(e) => setDiscountPercentage(Number(e.target.value))}
+              className="border p-3 rounded-xl w-full"
+            />
+          </div>
+
+          {/* FLAGS */}
+          <div className="grid grid-cols-2 gap-6">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isBestSeller}
+                onChange={(e) => setIsBestSeller(e.target.checked)}
+                className="w-4 h-4"
+              />
+              <span className="text-sm font-medium">Best Seller</span>
+            </label>
+
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isJustLanded}
+                onChange={(e) => setIsJustLanded(e.target.checked)}
+                className="w-4 h-4"
+              />
+              <span className="text-sm font-medium">Just Landed</span>
+            </label>
+          </div>
+
+
+          {/* VARIANTS */}
+          <div className="space-y-6">
+            <div className="pt-4 flex justify-between items-center">
+              <p className="font-bold text-lg">Variants</p>
+              <button
+                type="button"
+                onClick={() => setAddVariantModal(true)}
+                className="px-4 py-2 bg-brand-primary text-sm text-white rounded-md"
+              >
+                Add Variant
+              </button>
+            </div>
+            {variants.map((v, i) => (
+              <div
+                key={v._id ?? i}
+                className="border p-5 rounded-2xl space-y-4"
+                onClick={() => handleVariantClick(v)}
+              >
+                <div className="flex justify-between items-center">
+                  <p className="font-semibold">
+                    Variant {i + 1} —{" "}
+                    <input
+                      type="text"
+                      value={v.attributes?.color?.name ?? ""}
+                      placeholder="Color name"
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={(e) => updateVariantColor(i, "name", e.target.value)}
+                      className="border p-1 rounded-md text-sm w-24 mr-2"
+                    />
+                    <input
+                      type="color"
+                      value={v.attributes?.color?.hex ?? "#000000"}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={(e) => updateVariantColor(i, "hex", e.target.value)}
+                      className="w-10 h-8 rounded-md border cursor-pointer p-0 align-middle"
+                    />
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setVariants((prev) => prev.filter((_, idx) => idx !== i));
+                    }}
+                    className="text-sm text-red-600"
+                  >
+                    Remove
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium">Price</label>
+                    <input
+                      type="number"
+                      value={v.price}
+                      onChange={(e) =>
+                        updateVariant(i, "price", Number(e.target.value))
+                      }
+                      className="border p-2 rounded-xl w-full"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium">Stock</label>
+                    <input
+                      type="number"
+                      value={v.stock}
+                      onChange={(e) =>
+                        updateVariant(i, "stock", Number(e.target.value))
+                      }
+                      className="border p-2 rounded-xl w-full"
+                    />
+                  </div>
+                </div>
+
+                {/* SELECT VARIANT IMAGES FROM PRODUCT IMAGES */}
+                <label className="text-sm font-medium">Variant Images</label>
+                <div className="flex gap-3 flex-wrap max-h-32 overflow-auto p-2 border rounded-md">
+                  {images.map((img) => {
+                    const isSelected = v.images?.some(
+                      (vi) => vi.public_id === img.public_id
+                    );
+                    return (
+                      <div
+                        key={img.public_id}
+                        className={`relative cursor-pointer rounded-lg border ${isSelected ? "border-blue-600" : "border-transparent"
+                          }`}
+                        onClick={() => toggleVariantImage(i, img)}
+                      >
+                        <Image
+                          src={img.url}
+                          width={60}
+                          height={60}
+                          alt=""
+                          className={`rounded-lg ${isSelected ? "opacity-100" : "opacity-50"
+                            }`}
+                        />
+                        {isSelected && (
+                          <div className="absolute top-1 right-1 bg-blue-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">
+                            ✓
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* PRODUCT IMAGE UPLOAD */}
+          <div className="space-y-1 flex flex-col">
+            <label className="text-sm font-medium">Add Product Images</label>
+            <input type="file" multiple onChange={handleNewImagesChange} />
+          </div>
+
+          {/* FOOTER */}
+          <div className="flex justify-end gap-4 pt-4 border-t">
+            <button type="button" onClick={onClose}>
               Cancel
             </button>
             <button
               type="submit"
-              className="px-6 py-2.5 rounded-full bg-brand-primary text-text-inverse hover:opacity-90 transition"
+              className="bg-black text-white px-6 py-2 rounded-full"
             >
-              Save Changes
+              Save
             </button>
           </div>
         </form>
       </div>
+      {showAddVariantModal && (
+        <AddVariantModal
+          onClose={() => setAddVariantModal(false)}
+          onAdd={handleAddVariant}
+        />
+      )}
+
     </div>
   );
-}
 
-/* ---------- REUSABLE UI ---------- */
-
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="space-y-4">
-      <h3 className="font-semibold text-lg">{title}</h3>
-      <div className="space-y-4">{children}</div>
-    </div>
-  );
-}
-
-function Input({
-  label,
-  value,
-  onChange,
-  required = false,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  required?: boolean;
-}) {
-  return (
-    <div>
-      <label className="text-sm text-text-secondary mb-1 block">
-        {label}
-      </label>
-      <input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-xl border border-border bg-transparent px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
-        required={required}
-      />
-    </div>
-  );
-}
-
-function NumberInput({
-  label,
-  value,
-  onChange,
-  min,
-  max,
-  required = false,
-}: {
-  label: string;
-  value: number;
-  onChange: (v: number) => void;
-  min?: number;
-  max?: number;
-  required?: boolean;
-}) {
-  return (
-    <div>
-      <label className="text-sm text-text-secondary mb-1 block">
-        {label}
-      </label>
-      <input
-        type="number"
-        value={value}
-        min={min}
-        max={max}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full rounded-xl border border-border bg-transparent px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
-        required={required}
-      />
-    </div>
-  );
 }

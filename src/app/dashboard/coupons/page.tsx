@@ -25,7 +25,7 @@ export default function CouponsPage() {
   const fetchCoupons = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${process.env.NEXT_PUBLIC_HOSTED_API_URL}/coupons`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/coupons`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("mirae_admin_token")}`, // adjust auth if needed
         },
@@ -45,7 +45,7 @@ export default function CouponsPage() {
     if (!confirm("Delete this coupon?")) return;
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_HOSTED_API_URL}/coupons/${id}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/coupons/${id}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`, // adjust auth if needed

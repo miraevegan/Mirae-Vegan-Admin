@@ -33,11 +33,6 @@ export default function AdminReviewsPage() {
     loadReviews();
   }, [sort, rating, page]);
 
-  /* ---------- RESET PAGE ON FILTER CHANGE ---------- */
-//   useEffect(() => {
-//     setPage(1);
-//   }, [sort, rating]);
-
   /* ---------- DELETE ---------- */
   const deleteReview = async (id: string) => {
     if (!confirm("Delete this review?")) return;
@@ -50,6 +45,19 @@ export default function AdminReviewsPage() {
 
     setReviews(data.reviews);
     setPages(data.pagination.pages);
+  };
+
+  /* ---------- TOGGLE TESTIMONIAL ---------- */
+  const toggleTestimonial = async (id: string, value: boolean) => {
+    try {
+      await api.patch(`/reviews/${id}/testimonial`, { testimonial: value });
+      setReviews((reviews) =>
+        reviews.map((r) => (r._id === id ? { ...r, testimonial: value } : r))
+      );
+    } catch (error) {
+      console.error("Failed to update testimonial status", error);
+      // You can add toast notifications here if you want
+    }
   };
 
   return (
@@ -101,6 +109,7 @@ export default function AdminReviewsPage() {
               <th className="px-6 py-4 text-center">Rating</th>
               <th className="px-6 py-4">Review</th>
               <th className="px-6 py-4 text-center">Date</th>
+              <th className="px-6 py-4 text-center">Testimonial</th>
               <th className="px-6 py-4 text-center">Action</th>
             </tr>
           </thead>
@@ -111,20 +120,14 @@ export default function AdminReviewsPage() {
                 key={review._id}
                 className="border-b last:border-none hover:bg-gray-50/50 transition"
               >
-                <td className="px-6 py-4 font-medium">
-                  {review.product.name}
-                </td>
+                <td className="px-6 py-4 font-medium">{review.product.name}</td>
 
                 <td className="px-6 py-4">
                   <p className="font-medium">{review.user.name}</p>
-                  <p className="text-xs text-gray-500">
-                    {review.user.email}
-                  </p>
+                  <p className="text-xs text-gray-500">{review.user.email}</p>
                 </td>
 
-                <td className="px-6 py-4 text-center font-medium">
-                  ⭐ {review.rating}
-                </td>
+                <td className="px-6 py-4 text-center font-medium">⭐ {review.rating}</td>
 
                 <td className="px-6 py-4 max-w-md">
                   <ReviewText text={review.comment} />
@@ -132,6 +135,18 @@ export default function AdminReviewsPage() {
 
                 <td className="px-6 py-4 text-center text-gray-500">
                   {new Date(review.createdAt).toLocaleDateString()}
+                </td>
+
+                {/* Testimonial toggle checkbox */}
+                <td className="px-6 py-4 text-center">
+                  <input
+                    type="checkbox"
+                    checked={review.testimonial || false}
+                    onChange={() =>
+                      toggleTestimonial(review._id, !review.testimonial)
+                    }
+                    className="cursor-pointer"
+                  />
                 </td>
 
                 <td className="px-6 py-4 text-center">
@@ -147,10 +162,7 @@ export default function AdminReviewsPage() {
 
             {reviews.length === 0 && (
               <tr>
-                <td
-                  colSpan={6}
-                  className="px-6 py-12 text-center text-gray-500"
-                >
+                <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
                   No reviews found
                 </td>
               </tr>
@@ -179,11 +191,10 @@ export default function AdminReviewsPage() {
               <button
                 key={i}
                 onClick={() => setPage(i + 1)}
-                className={`px-4 py-2 rounded-xl text-sm border ${
-                  page === i + 1
+                className={`px-4 py-2 rounded-xl text-sm border ${page === i + 1
                     ? "bg-brand-primary text-white border-brand-primary"
                     : "hover:bg-gray-100"
-                }`}
+                  }`}
               >
                 {i + 1}
               </button>

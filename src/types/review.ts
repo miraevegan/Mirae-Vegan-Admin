@@ -4,6 +4,7 @@ export interface Review {
   comment: string;
   userName: string;
   createdAt: string;
+  testimonial?: boolean; // <-- new optional field
 
   product: {
     _id: string;

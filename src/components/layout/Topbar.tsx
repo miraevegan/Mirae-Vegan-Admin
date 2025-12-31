@@ -9,7 +9,7 @@ export default function Topbar() {
 
       <button
         onClick={logout}
-        className="text-sm text-text-secondary hover:text-error transition"
+        className="text-sm text-error hover:text-error transition"
       >
         Logout
       </button>

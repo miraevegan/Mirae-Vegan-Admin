@@ -4,33 +4,126 @@ import { useState } from "react";
 import type { Product } from "@/types/product";
 import Image from "next/image";
 
+interface VariantAttribute {
+  key: "color" | "size" | string;
+  value: string;
+  hex?: string;
+}
+
+interface Variant {
+  attributes: VariantAttribute[];
+  price: number;
+  stock: number;
+  imageIndexes?: number[]; // 🔑 IMPORTANT
+}
+
 interface AddProductModalProps {
   onClose: () => void;
   onAdd: (newProduct: Product) => void;
 }
 
+interface NormalizedVariantAttributes {
+  color?: {
+    name: string;
+    hex: string;
+  };
+  size?: string;
+  [key: string]: unknown; // allows future attributes safely
+}
+
 export default function AddProductModal({ onClose, onAdd }: AddProductModalProps) {
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
-  const [price, setPrice] = useState(0);
-  const [stock, setStock] = useState(0);
   const [description, setDescription] = useState("");
   const [discountPercentage, setDiscountPercentage] = useState(0);
   const [images, setImages] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
+  const [isBestSeller, setIsBestSeller] = useState(false);
+  const [isJustLanded, setIsJustLanded] = useState(false);
+  const [material, setMaterial] = useState("");
+  const [fit, setFit] = useState("");
+  const [care, setCare] = useState("");
 
-  const discountedPrice = price - (price * discountPercentage) / 100;
 
-  // Update preview URLs when images change
+  // Variants state - start with one empty variant by default
+  const [variants, setVariants] = useState<Variant[]>([
+    { attributes: [{ key: "", value: "" }], price: 0, stock: 0 },
+  ]);
+
+  // Handle images input and previews
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const files = Array.from(e.target.files);
       setImages(files);
-
-      // Create preview URLs
-      const urls = files.map((file) => URL.createObjectURL(file));
-      setPreviewUrls(urls);
+      setPreviewUrls(files.map((file) => URL.createObjectURL(file)));
     }
+  };
+
+  // Handle variant changes
+  function updateVariantAttribute(variantIndex: number, attrIndex: number, field: "key" | "value", val: string) {
+    const updated = [...variants];
+    updated[variantIndex].attributes[attrIndex][field] = val;
+    setVariants(updated);
+  }
+
+  function addVariantAttribute(variantIndex: number) {
+    const updated = [...variants];
+    updated[variantIndex].attributes.push({ key: "", value: "" });
+    setVariants(updated);
+  }
+
+  function removeVariantAttribute(variantIndex: number, attrIndex: number) {
+    const updated = [...variants];
+    if (updated[variantIndex].attributes.length > 1) {
+      updated[variantIndex].attributes.splice(attrIndex, 1);
+      setVariants(updated);
+    }
+  }
+
+  function updateVariant(index: number, field: "price" | "stock", value: number) {
+    const updated = [...variants];
+    updated[index] = {
+      ...updated[index],
+      [field]: value,
+    };
+    setVariants(updated);
+  }
+
+  function addVariant() {
+    setVariants([...variants, { attributes: [{ key: "", value: "" }], price: 0, stock: 0 }]);
+  }
+
+  function removeVariant(index: number) {
+    if (variants.length === 1) return; // Always keep at least one variant
+    setVariants(variants.filter((_, i) => i !== index));
+  }
+
+  const normalizeVariants = () => {
+    return variants.map((variant) => {
+      const attributes: NormalizedVariantAttributes = {};
+
+      variant.attributes.forEach((attr) => {
+        const normalizedKey = attr.key.toLowerCase();
+
+        if (normalizedKey === "color") {
+          attributes.color = {
+            name: attr.value,
+            hex: attr.hex || "#000000",
+          };
+        } else if (normalizedKey === "size") {
+          attributes.size = attr.value;
+        } else {
+          attributes[normalizedKey] = attr.value;
+        }
+      });
+
+      return {
+        attributes,
+        price: variant.price,
+        stock: variant.stock,
+        imageIndexes: variant.imageIndexes || [],
+      };
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -41,24 +134,58 @@ export default function AddProductModal({ onClose, onAdd }: AddProductModalProps
       return;
     }
 
+    // Validate variants - all names required and prices/stocks >= 0
+    for (const variant of variants) {
+      for (const attr of variant.attributes) {
+        if (!attr.key.trim() || !attr.value.trim()) {
+          alert("Variant attribute key and value cannot be empty.");
+          return;
+        }
+      }
+      if (variant.price < 0 || variant.stock < 0) {
+        alert("Price and stock must be zero or positive.");
+        return;
+      }
+    }
+
     const formData = new FormData();
     formData.append("name", name);
     formData.append("category", category);
-    formData.append("price", price.toString());
-    formData.append("stock", stock.toString());
     formData.append("description", description);
-    formData.append("discountPercentage", discountPercentage.toString());
+    formData.append(
+      "discount",
+      JSON.stringify({ percentage: discountPercentage })
+    );
+    formData.append(
+      "attributes",
+      JSON.stringify({
+        material,
+        fit,
+      })
+    );
+
+    formData.append(
+      "specifications",
+      JSON.stringify({
+        care,
+      })
+    );
+    formData.append("isBestSeller", isBestSeller.toString());
+    formData.append("isJustLanded", isJustLanded.toString());
+
+    // Add variants as JSON string
+    formData.append("variants", JSON.stringify(normalizeVariants()));
 
     images.forEach((image) => {
-      formData.append("images", image);
+      formData.append("productImages", image);
     });
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_HOSTED_API_URL}/products`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/products`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${localStorage.getItem("mirae_admin_token")}`,
-          // Note: Do NOT set Content-Type when sending FormData, browser sets it automatically with boundary
+          // Do NOT set Content-Type for FormData
         },
         body: formData,
       });
@@ -67,7 +194,7 @@ export default function AddProductModal({ onClose, onAdd }: AddProductModalProps
 
       const data = await res.json();
 
-      onAdd(data.product);
+      onAdd(data);
       onClose();
     } catch (error) {
       alert(error instanceof Error ? error.message : "Unknown error");
@@ -76,9 +203,8 @@ export default function AddProductModal({ onClose, onAdd }: AddProductModalProps
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-6">
-      <div className="bg-surface w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden">
-
-        {/* ---------- HEADER ---------- */}
+      <div className="bg-surface w-full max-w-3xl rounded-3xl shadow-2xl overflow-hidden">
+        {/* HEADER */}
         <div className="px-8 py-6 border-b border-border flex justify-between items-center">
           <div>
             <h2 className="font-brand text-2xl">Add Product</h2>
@@ -93,10 +219,10 @@ export default function AddProductModal({ onClose, onAdd }: AddProductModalProps
           </button>
         </div>
 
-        {/* ---------- FORM ---------- */}
+        {/* FORM */}
         <form
           onSubmit={handleSubmit}
-          className="p-8 space-y-8 max-h-[75vh] overflow-y-auto"
+          className="pt-8 px-8 space-y-8 max-h-[75vh] overflow-y-auto"
           encType="multipart/form-data"
         >
           {/* Basic Info */}
@@ -110,32 +236,189 @@ export default function AddProductModal({ onClose, onAdd }: AddProductModalProps
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              rows={4}
+              rows={5}
               className="w-full rounded-xl border border-border bg-transparent px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
               required
             />
           </Section>
 
-          {/* Pricing */}
-          <Section title="Pricing & Stock">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <NumberInput label="Price (₹)" value={price} onChange={setPrice} min={0} required />
-              <NumberInput label="Stock" value={stock} onChange={setStock} min={0} required />
-              <NumberInput
-                label="Discount (%)"
-                value={discountPercentage}
-                onChange={setDiscountPercentage}
-                min={0}
-                max={100}
-              />
-            </div>
+          {/* Extras */}
+          <Section title="Product Details">
+            <Input label="Material" value={material} onChange={setMaterial} />
+            <Input label="Fit" value={fit} onChange={setFit} />
+            <Input
+              label="Care Instructions (comma separated)"
+              value={care}
+              onChange={setCare}
+            />
+          </Section>
 
-            {discountPercentage > 0 && (
-              <div className="mt-4 rounded-xl bg-brand-primary/10 p-4">
-                <p className="text-sm font-medium text-brand-primary">Discounted Price</p>
-                <p className="text-lg font-semibold">₹{discountedPrice.toLocaleString()}</p>
+          {/* Variants */}
+          <Section title="Variants (Name, Price, Stock)">
+            {variants.map((variant, vIndex) => (
+              <div key={vIndex} className="mb-6 border p-4 rounded-lg space-y-3">
+                <div className="flex flex-wrap gap-2 items-center">
+                  <h4 className="font-semibold">Variant {vIndex + 1}</h4>
+                  <button
+                    type="button"
+                    onClick={() => removeVariant(vIndex)}
+                    disabled={variants.length === 1}
+                    className="text-red-600 hover:underline ml-auto"
+                  >
+                    Remove Variant
+                  </button>
+                </div>
+
+                {/* Attributes */}
+                {variant.attributes.map((attr, aIndex) => {
+                  const isColor = attr.key.toLowerCase() === "color";
+
+                  return (
+                    <div key={aIndex} className="flex gap-2 items-center">
+                      <Input
+                        label="Attribute Key"
+                        value={attr.key}
+                        onChange={(val) => updateVariantAttribute(vIndex, aIndex, "key", val)}
+                        required
+                      />
+
+                      {isColor ? (
+                        <>
+                          {/* Color Name */}
+                          <Input
+                            label="Color Name"
+                            value={attr.value}
+                            onChange={(val) =>
+                              updateVariantAttribute(vIndex, aIndex, "value", val)
+                            }
+                            required
+                          />
+
+                          {/* Color Picker */}
+                          <input
+                            type="color"
+                            value={attr.hex || "#000000"}
+                            onChange={(e) => {
+                              const updated = [...variants];
+                              updated[vIndex].attributes[aIndex].hex = e.target.value;
+                              setVariants(updated);
+                            }}
+                            className="w-12 h-12 rounded-lg border border-border cursor-pointer"
+                            title="Pick color"
+                          />
+                        </>
+                      ) : (
+                        <Input
+                          label="Attribute Value"
+                          value={attr.value}
+                          onChange={(val) =>
+                            updateVariantAttribute(vIndex, aIndex, "value", val)
+                          }
+                          required
+                        />
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => removeVariantAttribute(vIndex, aIndex)}
+                        disabled={variant.attributes.length === 1}
+                        className="text-red-600 hover:underline"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  );
+                })}
+
+                <button
+                  type="button"
+                  onClick={() => addVariantAttribute(vIndex)}
+                  className="text-brand-primary hover:underline"
+                >
+                  + Add attribute
+                </button>
+
+                {/* Price and Stock */}
+                <div className="flex gap-4 mt-4">
+                  <NumberInput
+                    label="Price (₹)"
+                    value={variant.price}
+                    onChange={(val) => updateVariant(vIndex, "price", val)}
+                    min={0}
+                    required
+                  />
+                  <NumberInput
+                    label="Stock"
+                    value={variant.stock}
+                    onChange={(val) => updateVariant(vIndex, "stock", val)}
+                    min={0}
+                    required
+                  />
+                </div>
+
+                {/* Variant Image Mapping */}
+                <div className="mt-3">
+                  <p className="text-sm text-text-secondary mb-1">
+                    Variant Images (optional)
+                  </p>
+
+                  <div className="flex flex-wrap gap-2">
+                    {previewUrls.map((url, imgIndex) => {
+                      const selected = variant.imageIndexes?.includes(imgIndex);
+
+                      return (
+                        <button
+                          type="button"
+                          key={imgIndex}
+                          onClick={() => {
+                            const updated = [...variants];
+                            const indexes = new Set(updated[vIndex].imageIndexes || []);
+
+                            if (indexes.has(imgIndex)) indexes.delete(imgIndex);
+                            else indexes.add(imgIndex);
+
+                            updated[vIndex].imageIndexes = Array.from(indexes);
+                            setVariants(updated);
+                          }}
+                          className={`border rounded-lg p-1 ${selected ? "border-brand-primary" : "border-border"
+                            }`}
+                        >
+                          <Image
+                            src={url}
+                            width={50}
+                            height={50}
+                            alt="variant"
+                            className="w-12 h-12 object-cover rounded"
+                          />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
-            )}
+            ))}
+
+            <button
+              type="button"
+              onClick={addVariant}
+              className="text-brand-primary hover:underline"
+            >
+              + Add another variant
+            </button>
+          </Section>
+
+          {/* Pricing Summary */}
+          <Section title="Discount">
+            <NumberInput
+              label="Discount Percentage (%)"
+              value={discountPercentage}
+              onChange={(val) => setDiscountPercentage(val)}
+              min={0}
+              max={90}
+            />
+            <p className="text-sm font-medium text-brand-primary">
+              Discount Percentage: {discountPercentage}%
+            </p>
           </Section>
 
           {/* Images Upload */}
@@ -153,7 +436,7 @@ export default function AddProductModal({ onClose, onAdd }: AddProductModalProps
                   key={idx}
                   src={url}
                   width={100}
-                    height={100}
+                  height={100}
                   alt={`Preview ${idx + 1}`}
                   className="w-24 h-24 object-cover rounded-lg border border-border"
                 />
@@ -161,8 +444,30 @@ export default function AddProductModal({ onClose, onAdd }: AddProductModalProps
             </div>
           </Section>
 
-          {/* ---------- FOOTER ---------- */}
-          <div className="sticky bottom-0 bg-surface pt-6 border-t border-border flex justify-end gap-4">
+          {/* Flags */}
+          <Section title="Additional Options">
+            <label className="inline-flex items-center space-x-2">
+              <input
+                type="checkbox"
+                checked={isBestSeller}
+                onChange={(e) => setIsBestSeller(e.target.checked)}
+                className="rounded"
+              />
+              <span>Mark as Best Seller</span>
+            </label>
+            <label className="inline-flex items-center space-x-2 ml-6">
+              <input
+                type="checkbox"
+                checked={isJustLanded}
+                onChange={(e) => setIsJustLanded(e.target.checked)}
+                className="rounded"
+              />
+              <span>Mark as Just Landed</span>
+            </label>
+          </Section>
+
+          {/* FOOTER */}
+          <div className="sticky bottom-0 bg-surface pt-4 pb-6 border-t border-border flex justify-end gap-4">
             <button
               type="button"
               onClick={onClose}
@@ -212,7 +517,7 @@ function Input({
   required?: boolean;
 }) {
   return (
-    <div>
+    <div className="min-w-37.5">
       <label className="text-sm text-text-secondary mb-1 block">{label}</label>
       <input
         value={value}
@@ -240,7 +545,7 @@ function NumberInput({
   required?: boolean;
 }) {
   return (
-    <div>
+    <div className="min-w-37.5">
       <label className="text-sm text-text-secondary mb-1 block">{label}</label>
       <input
         type="number"

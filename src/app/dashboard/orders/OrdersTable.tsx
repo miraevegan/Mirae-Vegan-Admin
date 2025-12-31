@@ -50,15 +50,17 @@ export default function OrdersTable({ orders, onView, onRefresh }: Props) {
                             </td>
 
                             <td className="px-6 py-4">
-                                {order.isPaid ? (
+                                {order.paymentStatus === "paid" ? (
                                     <span className="text-green-600 font-medium">Paid</span>
-                                ) : (
+                                ) : order.paymentMethod === "UPI_MANUAL" ? (
                                     <button
                                         onClick={() => markPaid(order._id)}
                                         className="text-brand-primary hover:underline"
                                     >
                                         Mark Paid
                                     </button>
+                                ) : (
+                                    <span className="text-xs text-green-700">Razorpay</span>
                                 )}
                             </td>
 
