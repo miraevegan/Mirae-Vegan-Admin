@@ -80,10 +80,24 @@ export default function UserDetailsModal({ id, onClose }: UserDetailsModalProps)
       <div className="bg-surface w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden">
 
         {/* ---------- HEADER ---------- */}
-        <div className="flex items-center justify-between px-8 py-6 border-b border-border">
-          <div>
-            <h2 className="font-brand text-2xl">{user.name}</h2>
-            <p className="text-sm text-text-secondary">{user.email}</p>
+        <div className="sticky top-0 z-10 bg-surface flex items-center justify-between px-8 py-6 border-b border-border">
+          <div className="flex items-center gap-4">
+            {/* Avatar */}
+            <div className="w-12 h-12 rounded-full bg-brand-primary text-text-inverse flex items-center justify-center font-semibold">
+              {user.name.charAt(0).toUpperCase()}
+            </div>
+
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="font-brand text-2xl">{user.name}</h2>
+                {user.role == "admin" ? (
+                  <Badge label="Admin" />
+                ) : (
+                  <Badge label="User" />
+                )}
+              </div>
+              <p className="text-sm text-text-secondary">{user.email}</p>
+            </div>
           </div>
 
           <button
@@ -99,86 +113,32 @@ export default function UserDetailsModal({ id, onClose }: UserDetailsModalProps)
 
           {/* ---------- USER INFO ---------- */}
           <Section title="User Information">
-            <InfoRow label="Name" value={user.name} />
-            <InfoRow label="Email" value={user.email} />
-            <InfoRow label="Phone" value={user.phone || "N/A"} />
-            <InfoRow
-              label="Joined"
-              value={new Date(user.createdAt).toLocaleDateString()}
-            />
-            <InfoRow
-              label="Admin"
-              value={
-                user.role == "admin" ? (
-                  <Badge label="Yes" />
-                ) : (
-                  <Badge label="No" />
-                )
-              }
-            />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <InfoCard label="Name" value={user.name} />
+              <InfoCard label="Email" value={user.email} />
+              <InfoCard label="Phone" value={user.phone || "N/A"} />
+              <InfoCard
+                label="Joined"
+                value={new Date(user.createdAt).toLocaleDateString()}
+              />
+            </div>
           </Section>
 
           {/* ---------- ORDERS ---------- */}
           <Section title={`Orders (${orders.length})`}>
-            {orders.length === 0 ? (
-              <p className="text-text-secondary text-sm">
-                No orders placed yet.
-              </p>
-            ) : (
-              <div className="grid gap-4">
-                {orders.map((order) => (
-                  <div
-                    key={order._id}
-                    className="border border-border rounded-xl p-4 space-y-2"
-                  >
-                    <InfoRow label="Order ID" value={order._id} />
-                    <InfoRow
-                      label="Items"
-                      value={order.orderItems.length}
-                    />
-                    {/* <InfoRow
-                      label="Total"
-                      value={`₹${order.totalPrice.toLocaleString()}`}
-                    /> */}
-                    <InfoRow
-                      label="Paid"
-                      value={
-                        order.isPaid ? (
-                          <span className="text-green-600 font-medium">
-                            Yes
-                          </span>
-                        ) : (
-                          <span className="text-red-600 font-medium">
-                            No
-                          </span>
-                        )
-                      }
-                    />
-                    <InfoRow
-                      label="Delivered"
-                      value={
-                        order.isDelivered ? (
-                          <span className="text-green-600 font-medium">
-                            Yes
-                          </span>
-                        ) : (
-                          <span className="text-red-600 font-medium">
-                            No
-                          </span>
-                        )
-                      }
-                    />
-                    <InfoRow
-                      label="Ordered On"
-                      value={new Date(
-                        order.createdAt
-                      ).toLocaleDateString()}
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-          </Section>
+  {orders.length === 0 ? (
+    <p className="text-text-secondary text-sm">
+      No orders placed yet.
+    </p>
+  ) : (
+    <div className="divide-y divide-border rounded-2xl border border-border overflow-hidden">
+      {orders.map((order) => (
+        <OrderRow key={order._id} order={order} />
+      ))}
+    </div>
+  )}
+</Section>
+
         </div>
       </div>
     </Backdrop>
@@ -195,6 +155,89 @@ function Backdrop({ children }: { children: React.ReactNode }) {
   );
 }
 
+function OrderRow({ order }: { order: Order }) {
+  const createdAt = new Date(order.createdAt);
+
+  const statusColor =
+    order.orderStatus === "delivered"
+      ? "text-green-600"
+      : order.orderStatus === "cancelled"
+      ? "text-red-600"
+      : "text-yellow-600";
+
+  return (
+    <div className="px-6 py-4 hover:bg-surface-accent transition space-y-3">
+
+      {/* TOP ROW */}
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium">
+            {createdAt.toLocaleDateString()}
+            <span className="text-xs text-text-secondary ml-2">
+              {createdAt.toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </span>
+          </p>
+
+          <p className="text-md text-text-secondary">
+            <span className="font-semibold">Order ID: </span>{order._id}
+          </p>
+        </div>
+
+        <span
+          className={`text-xs px-3 py-1 rounded-full border border-border ${statusColor}`}
+        >
+          {order.orderStatus.toUpperCase()}
+        </span>
+      </div>
+
+      {/* META INFO */}
+      <div className="flex justify-between text-sm">
+
+        <OrderMeta
+          label="Items"
+          value={order.orderItems.length}
+        />
+
+        <OrderMeta
+          label="Total"
+          value={`₹${order.totalPrice}`}
+        />
+
+        <OrderMeta
+          label="Payment"
+          value={order.paymentStatus ? "Paid" : "Pending"}
+          valueClass={order.paymentStatus ? "text-green-600" : "text-yellow-600"}
+        />
+      </div>
+    </div>
+  );
+}
+
+function OrderMeta({
+  label,
+  value,
+  valueClass = "",
+}: {
+  label: string;
+  value: React.ReactNode;
+  valueClass?: string;
+}) {
+  return (
+    <div>
+      <p className="text-xs uppercase tracking-widest text-text-secondary">
+        {label}
+      </p>
+      <p className={`font-medium ${valueClass}`}>
+        {value}
+      </p>
+    </div>
+  );
+}
+
+
 function Section({
   title,
   children,
@@ -210,7 +253,15 @@ function Section({
   );
 }
 
-function InfoRow({
+function Badge({ label }: { label: string }) {
+  return (
+    <span className="px-3 py-1 rounded-full border border-border text-xs">
+      {label}
+    </span>
+  );
+}
+
+function InfoCard({
   label,
   value,
 }: {
@@ -218,17 +269,11 @@ function InfoRow({
   value: React.ReactNode;
 }) {
   return (
-    <div className="flex justify-between text-sm text-text-secondary">
-      <span className="font-medium text-text-primary">{label}</span>
-      <span>{value}</span>
+    <div className="rounded-xl border border-border p-4 bg-surface-accent">
+      <p className="text-xs uppercase tracking-widest text-text-secondary mb-1">
+        {label}
+      </p>
+      <p className="text-sm font-medium">{value}</p>
     </div>
-  );
-}
-
-function Badge({ label }: { label: string }) {
-  return (
-    <span className="px-3 py-1 rounded-full border border-border text-xs">
-      {label}
-    </span>
   );
 }

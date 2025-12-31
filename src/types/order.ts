@@ -23,6 +23,24 @@ export interface OrderItem {
   image?: string;
 }
 
+export interface PaymentResult {
+  razorpayOrderId: string;
+  razorpayPaymentId: string;
+  razorpaySignature: string;
+  status: string;
+}
+
+export interface ShippingAddress {
+  fullName: string;
+  phone: string;
+  city: string;
+  state: string;
+  pincode: string;
+  addressLine1?: string;    // Optional, you can add these if your data may have them
+  addressLine2?: string;
+  country?: string;
+}
+
 export interface Order {
   _id: string;
 
@@ -48,4 +66,7 @@ export interface Order {
 
   createdAt: string;
   updatedAt: string;
+
+  paymentResult?: PaymentResult;
+  shippingAddress?: ShippingAddress;
 }
