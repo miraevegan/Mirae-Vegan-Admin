@@ -15,6 +15,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Miraé Admin",
   description: "Management dashboard for Miraé",
+  icons: {
+    icon: `/Favicon.svg`,
+  }
 };
 
 export default function RootLayout({
