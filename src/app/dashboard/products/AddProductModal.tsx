@@ -40,6 +40,7 @@ export default function AddProductModal({ onClose, onAdd }: AddProductModalProps
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [isBestSeller, setIsBestSeller] = useState(false);
   const [isJustLanded, setIsJustLanded] = useState(false);
+  const [isVegan, setIsVegan] = useState(false);
   const [material, setMaterial] = useState("");
   const [fit, setFit] = useState("");
   const [care, setCare] = useState("");
@@ -172,6 +173,7 @@ export default function AddProductModal({ onClose, onAdd }: AddProductModalProps
     );
     formData.append("isBestSeller", isBestSeller.toString());
     formData.append("isJustLanded", isJustLanded.toString());
+    formData.append("isVegan", isVegan.toString());
 
     // Add variants as JSON string
     formData.append("variants", JSON.stringify(normalizeVariants()));
@@ -455,6 +457,7 @@ export default function AddProductModal({ onClose, onAdd }: AddProductModalProps
               />
               <span>Mark as Best Seller</span>
             </label>
+
             <label className="inline-flex items-center space-x-2 ml-6">
               <input
                 type="checkbox"
@@ -463,6 +466,20 @@ export default function AddProductModal({ onClose, onAdd }: AddProductModalProps
                 className="rounded"
               />
               <span>Mark as Just Landed</span>
+            </label>
+
+            {/* 🌱 VEGAN */}
+            <label className="inline-flex items-center space-x-2 ml-6">
+              <input
+                type="checkbox"
+                checked={isVegan}
+                onChange={(e) => setIsVegan(e.target.checked)}
+                className="rounded"
+              />
+              <span className="flex items-center gap-1">
+                <span>Vegan</span>
+                <span className="text-green-600">🌱</span>
+              </span>
             </label>
           </Section>
 

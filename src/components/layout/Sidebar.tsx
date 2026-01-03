@@ -12,6 +12,8 @@ const links = [
   { name: "Reviews", href: "/dashboard/reviews" },
   { name: "Coupons", href: "/dashboard/coupons" },
   { name: "Newsletter", href: "/dashboard/newsletter" },
+  { name: "Hero Section", href: "/dashboard/hero" },
+  { name: "Abandoned Carts", href: "/dashboard/abandonedCart" },
 ];
 
 export default function Sidebar() {
