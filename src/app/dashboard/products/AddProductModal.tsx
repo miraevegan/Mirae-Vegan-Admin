@@ -183,7 +183,7 @@ export default function AddProductModal({ onClose, onAdd }: AddProductModalProps
     });
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/products`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_HOSTED_API_URL}/products`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${localStorage.getItem("mirae_admin_token")}`,

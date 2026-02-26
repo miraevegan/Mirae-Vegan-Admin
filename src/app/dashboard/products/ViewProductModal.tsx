@@ -70,7 +70,7 @@ export default function ViewProductModal({ slug, onClose }: ViewProductModalProp
       try {
         setLoadingProduct(true);
         setError("");
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/products/${slug}`);
+        const res = await fetch(`${process.env.NEXT_PUBLIC_HOSTED_API_URL}/products/${slug}`);
 
         if (!res.ok) throw new Error(`Failed to fetch product: ${res.status}`);
 
@@ -104,7 +104,7 @@ export default function ViewProductModal({ slug, onClose }: ViewProductModalProp
     const fetchReviews = async () => {
       try {
         setLoadingReviews(true);
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/reviews/${product._id}`);
+        const res = await fetch(`${process.env.NEXT_PUBLIC_HOSTED_API_URL}/reviews/${product._id}`);
 
         if (!res.ok) throw new Error(`Failed to fetch reviews: ${res.status}`);
 

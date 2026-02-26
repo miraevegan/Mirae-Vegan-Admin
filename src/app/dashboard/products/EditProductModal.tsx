@@ -113,7 +113,7 @@ export default function EditProductModal({
     if (!confirm("Delete this image?")) return;
 
     const res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/products/${product._id}/images/${encodeURIComponent(
+      `${process.env.NEXT_PUBLIC_HOSTED_API_URL}/products/${product._id}/images/${encodeURIComponent(
         publicId
       )}`,
       {
@@ -195,7 +195,7 @@ export default function EditProductModal({
     formData.append("isJustLanded", String(isJustLanded));
 
     const res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/products/${product._id}`,
+      `${process.env.NEXT_PUBLIC_HOSTED_API_URL}/products/${product._id}`,
       {
         method: "PUT",
         headers: {
