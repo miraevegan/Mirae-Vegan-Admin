@@ -5,6 +5,7 @@ import EditProductModal from "./EditProductModal";
 import ViewProductModal from "./ViewProductModal";
 import type { Discount, Product } from "@/types/product";
 import AddProductModal from "./AddProductModal";
+import api from "@/lib/api";
 
 interface ApiProduct extends Omit<Product, "discount"> {
   discount: Discount | null;
@@ -54,6 +55,22 @@ export default function ProductsPage() {
     setProducts((prev) =>
       prev.map((p) => (p._id === updatedProduct._id ? updatedProduct : p))
     );
+  };
+
+  const handleDelete = async (productId: string) => {
+    const confirmDelete = confirm("Delete this product?");
+    if (!confirmDelete) return;
+
+    try {
+      await api.delete(`/products/${productId}`);
+
+      setProducts((prev) =>
+        prev.filter((p) => p._id !== productId)
+      );
+    } catch (err) {
+      console.error(err);
+      alert("Failed to delete product");
+    }
   };
 
   /* ---------- DERIVED DATA ---------- */
@@ -171,10 +188,8 @@ export default function ProductsPage() {
                   key={product._id}
                   product={product}
                   onEdit={() => setEditingProduct(product)}
-                  onView={() => {
-                    console.log("View clicked for:", product.slug)
-                    setViewingProductSlug(product.slug)
-                  }}
+                  onView={() => setViewingProductSlug(product.slug)}
+                  onDelete={() => handleDelete(product._id)}
                 />
               ))
             )}
@@ -216,10 +231,12 @@ function ProductRow({
   product,
   onEdit,
   onView,
+  onDelete,
 }: {
   product: Product;
   onEdit: () => void;
   onView: () => void;
+  onDelete: () => void;
 }) {
   /* ---------------- PRICE ---------------- */
 
@@ -320,7 +337,7 @@ function ProductRow({
         >
           Edit
         </button>
-        <button className="text-error hover:underline cursor-pointer" type="button">
+        <button onClick={onDelete} className="text-error hover:underline cursor-pointer" type="button">
           Delete
         </button>
       </td>
