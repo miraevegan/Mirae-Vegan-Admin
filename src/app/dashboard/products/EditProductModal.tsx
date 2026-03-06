@@ -99,6 +99,10 @@ export default function EditProductModal({
     product.isJustLanded ?? false
   );
 
+  const [isVegan, setIsVegan] = useState<boolean>(
+    product.isVegan ?? false
+  );
+
   const handleNewImagesChange = (
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
@@ -193,6 +197,7 @@ export default function EditProductModal({
     });
     formData.append("isBestSeller", String(isBestSeller));
     formData.append("isJustLanded", String(isJustLanded));
+    formData.append("isVegan", String(isVegan));
 
     const res = await fetch(
       `${process.env.NEXT_PUBLIC_HOSTED_API_URL}/products/${product._id}`,
@@ -319,7 +324,7 @@ export default function EditProductModal({
           </div>
 
           {/* FLAGS */}
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-3 gap-6">
             <label className="flex items-center gap-3 cursor-pointer">
               <input
                 type="checkbox"
@@ -338,6 +343,16 @@ export default function EditProductModal({
                 className="w-4 h-4"
               />
               <span className="text-sm font-medium">Just Landed</span>
+            </label>
+
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isVegan}
+                onChange={(e) => setIsVegan(e.target.checked)}
+                className="w-4 h-4"
+              />
+              <span className="text-sm font-medium">Vegan</span>
             </label>
           </div>
 

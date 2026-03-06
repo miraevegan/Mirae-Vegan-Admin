@@ -48,7 +48,7 @@ export default function CouponsPage() {
       const res = await fetch(`${process.env.NEXT_PUBLIC_HOSTED_API_URL}/coupons/${id}`, {
         method: "DELETE",
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`, // adjust auth if needed
+          Authorization: `Bearer ${localStorage.getItem("mirae_admin_token")}`, // adjust auth if needed
         },
       });
       if (!res.ok) throw new Error("Failed to delete coupon");
