@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import api from "@/lib/api";
 import ReviewText from "./ReviewText";
 import { Review } from "@/types/review";
+import Image from "next/image";
 
 export default function AdminReviewsPage() {
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -104,6 +105,7 @@ export default function AdminReviewsPage() {
         <table className="w-full text-sm">
           <thead className="border-b border-border bg-surface sticky top-0">
             <tr className="text-left">
+              <th className="px-6 py-4 text-center">Photo</th>
               <th className="px-6 py-4">Product</th>
               <th className="px-6 py-4">User</th>
               <th className="px-6 py-4 text-center">Rating</th>
@@ -120,11 +122,34 @@ export default function AdminReviewsPage() {
                 key={review._id}
                 className="border-b last:border-none hover:bg-gray-50/50 transition"
               >
+                <td className="px-6 py-4 text-center">
+                  {review.image?.url ? (
+                    <Image
+                      src={review.image.url}
+                      alt="review"
+                      className="w-14 h-14 object-cover rounded-md border"
+                      width={56}
+                      height={56}
+                    />
+                  ) : (
+                    <span className="text-xs text-gray-400">—</span>
+                  )}
+                </td>
+
                 <td className="px-6 py-4 font-medium">{review.product.name}</td>
 
                 <td className="px-6 py-4">
-                  <p className="font-medium">{review.user.name}</p>
-                  <p className="text-xs text-gray-500">{review.user.email}</p>
+                  <p className="font-medium">
+                    {review.user?.name || review.userName || "Guest"}
+                  </p>
+
+                  {review.user?.email && (
+                    <p className="text-xs text-gray-500">{review.user.email}</p>
+                  )}
+
+                  {!review.user && review.phone && (
+                    <p className="text-xs text-gray-500">{review.phone}</p>
+                  )}
                 </td>
 
                 <td className="px-6 py-4 text-center font-medium">⭐ {review.rating}</td>
@@ -162,7 +187,7 @@ export default function AdminReviewsPage() {
 
             {reviews.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
                   No reviews found
                 </td>
               </tr>
@@ -192,8 +217,8 @@ export default function AdminReviewsPage() {
                 key={i}
                 onClick={() => setPage(i + 1)}
                 className={`px-4 py-2 rounded-xl text-sm border ${page === i + 1
-                    ? "bg-brand-primary text-white border-brand-primary"
-                    : "hover:bg-gray-100"
+                  ? "bg-brand-primary text-white border-brand-primary"
+                  : "hover:bg-gray-100"
                   }`}
               >
                 {i + 1}
