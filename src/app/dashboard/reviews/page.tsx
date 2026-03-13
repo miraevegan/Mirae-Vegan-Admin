@@ -28,6 +28,8 @@ export default function AdminReviewsPage() {
         setPages(data.pagination.pages);
       } catch (error) {
         console.error("Failed to fetch reviews", error);
+
+        // Just Checking
       }
     };
 
